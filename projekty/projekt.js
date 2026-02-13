@@ -88,7 +88,7 @@ fetch('list.json').then(r=>r.json()).then(list=>
     var back = document.createElement('p');
     back.style.marginTop = '1rem';
     var backA = document.createElement('a');
-    backA.href = '../index.html';
+    backA.href = 'index.html';
     backA.className = 'button';
     backA.textContent = 'Powrót';
     back.appendChild(backA);
