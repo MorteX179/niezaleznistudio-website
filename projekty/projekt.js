@@ -102,7 +102,7 @@ fetch('list.json').then(r=>r.json()).then(list=>
     if(item.image)
     {
       var img = document.createElement('img');
-      img.src = item.image;
+      img.src = '../' + item.image;
       img.alt = item.title || '';
       right.appendChild(img);
     }
