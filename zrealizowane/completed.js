@@ -106,7 +106,7 @@ fetch('list.json').then(r=>r.json()).then(list=>
       link.target = '_blank';
 
       var img = document.createElement('img');
-      img.src = item.image;
+      img.src = '../' + item.image;
       img.alt = item.title || '';
 
       link.appendChild(img);
