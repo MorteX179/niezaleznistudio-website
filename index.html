@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Niezależni Studio</title>
+    <link rel="icon" href="../images/logo.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container header-inner">
+            <div class="logo">
+                <img src="../images/Logo.png" alt="Niezależni Studio" class="logo-img"/>
+                <div>
+                    <strong>Niezależni Studio</strong>
+                </div>
+            </div>
+            <nav aria-label="Główne">
+                <a href="#o-nas">O nas</a>
+                <a href="#projekty">Projekty</a>
+                <a href="#zrealizowane">Zrealizowane</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="o-nas" class="section">
+            <h2>O nas</h2>
+            <div class="about-card">
+                <div class="bio">
+                    <p class="muted">Jesteśmy małym, niezależnym studiem specjalizującym się w dubbingu i lokalizacji audio. Pracujemy z aktorami głosowymi, realizujemy ADR, miksujemy i dbamy o finalny mastering. Stawiamy na naturalność, szybką komunikację i dbałość o detale — każde zlecenie traktujemy indywidualnie.</p>
+                    <ul class="muted">
+                        <li>Profesjonalne nagrania i postprodukcja</li>
+                        <li>Adaptacja dialogów i kierunek aktorski</li>
+                        <li>Szybkie terminy i elastyczność</li>
+                    </ul>
+                </div>
+                <div class="meta">
+                    <h4>Kontakt</h4>
+                    <p class="muted">niezaleznistudio@gmail.com</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="projekty" class="section">
+            <h2>Nasze projekty</h2>
+            <div id="projGrid" class="grid" style="margin-top:1rem"></div>
+            <div id="projMore" style="margin-top:0.6rem;display:none">
+                <a id="projMoreLink" class="button" href="projekty/">Zobacz więcej</a>
+            </div>
+        </section>
+
+        <section id="zrealizowane" class="section">
+            <h2>Zrealizowane</h2>
+            <div id="doneGrid" class="grid" style="margin-top:1rem">
+            </div>
+            <div id="doneMore" style="margin-top:0.6rem;display:none">
+                <a id="doneMoreLink" class="button" href="zrealizowane/">Zobacz więcej</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div>
+            <img src="../images/Logo.png" alt="Niezależni Studio" class="logo-img-small"/>
+            <div style="display:inline-block;margin-left:8px">Niezależni Studio — © <span id="year"></span></div>
+        </div>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>
