@@ -1,9 +1,14 @@
 {
   "title": "Pesterquest Dubbing",
   "desc": "Dubbing | 2025/2026",
+  "type": "fanowski",
   "seo": "Polski dubbing do Pesterquest – projekt w trakcie realizacji przez Niezależni Studio.",
   "order": 1,
-  "cast": ["TBD"],
-  "team": ["TBD"],
+  "cast": [
+    "TBD"
+  ],
+  "team": [
+    "TBD"
+  ],
   "details": "TBD"
 }

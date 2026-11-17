@@ -1,14 +1,25 @@
 {
   "title": "Tytuł projektu",
   "desc": "Dubbing | 2026",
+  "type": "oficjalny",
   "seo": "Jedno zdanie opisu dla Google i podglądu linku.",
   "order": 10,
   "video": "https://www.youtube.com/watch?v=XXXXXXXXXXX",
   "cast": [
-    { "name": "Aktor", "role": "Postać" }
+    {
+      "name": "Aktor",
+      "role": "Postać"
+    }
   ],
   "team": [
-    { "name": "Osoba", "role": "Reżyseria", "icon": "clipper" }
+    {
+      "name": "Osoba",
+      "role": "Reżyseria"
+    },
+    {
+      "name": "Osoba Pierwsza, Osoba Druga",
+      "role": "Montaż"
+    }
   ],
   "details": "Opis projektu.\n\nPusta linia zaczyna nowy akapit. Linki https://... są klikalne."
 }

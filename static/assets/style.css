@@ -1,5 +1,3 @@
-/* Niezależni Studio — wspólny arkusz stylów dla całej strony */
-
 :root {
   --accent-1: #6a11cb;
   --accent-2: #2575fc;
@@ -370,6 +368,80 @@ p { margin: 0 0 1rem; }
 
 .badge.done { background: rgba(22, 128, 74, 0.85); }
 
+.badge.type {
+  left: auto;
+  right: 0.75rem;
+}
+
+.card.static { cursor: default; }
+.card.static:hover { transform: none; box-shadow: var(--shadow); border-color: var(--border); }
+.card.static:hover .card-media img { transform: none; }
+
+/* brak obrazka -> logo na gradiencie */
+.card-media.placeholder {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(106, 17, 203, 0.45), transparent 60%),
+    radial-gradient(circle at 80% 90%, rgba(37, 117, 252, 0.4), transparent 60%),
+    #111a2b;
+}
+
+.card-media.placeholder img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+/* pionowe miniatury (shorty) -> rozmyte tło + cały obrazek */
+.card-media.vertical {
+  position: relative;
+  isolation: isolate;
+}
+
+.card-media.vertical .bg {
+  position: absolute;
+  inset: -24px;
+  z-index: -1;
+  background-position: center;
+  background-size: cover;
+  filter: blur(18px) brightness(0.5);
+}
+
+.card-media.vertical img { object-fit: contain; }
+
+/* filtry Wszystkie / Oficjalne / Fanowskie */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.25rem 0 1.5rem;
+}
+
+.chip {
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.chip:hover { border-color: rgba(143, 182, 255, 0.45); }
+
+.chip[aria-pressed="true"] {
+  background: var(--accent-grad);
+  border-color: transparent;
+  color: #fff;
+}
+
+.card[hidden] { display: none; }
+
 .status {
   grid-column: 1 / -1;
   padding: 1.5rem;
@@ -465,14 +537,38 @@ p { margin: 0 0 1rem; }
   border-radius: 0;
 }
 
+.video.short {
+  aspect-ratio: 9 / 16;
+  max-width: 340px;
+  margin-inline: auto;
+}
+
+.project-media.short { text-align: center; }
+
 .video-link {
   display: inline-block;
   margin-top: 0.6rem;
   font-size: 0.95rem;
 }
 
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.25rem 0 0.75rem;
+}
+
+.tag {
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
 .project-meta {
-  margin: -0.5rem 0 1.5rem;
+  margin: 0 0 1.5rem;
   font-size: 1.1rem;
 }
 
@@ -493,6 +589,8 @@ p { margin: 0 0 1rem; }
   margin: 0;
   white-space: pre-line;
 }
+
+.details p + p { margin-top: 0.75rem; }
 
 .people {
   list-style: none;
@@ -557,6 +655,12 @@ p { margin: 0 0 1rem; }
   height: 32px;
 }
 
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
 .site-footer a { color: var(--text-muted); }
 .site-footer a:hover { color: #fff; }
 
@@ -580,7 +684,10 @@ p { margin: 0 0 1rem; }
   margin-bottom: 1rem;
 }
 
-.not-found .actions { justify-content: center; }
+.not-found .actions,
+.actions.center { justify-content: center; }
+
+.contact .actions { margin-top: 0.75rem; }
 
 /* ---------- Płynne przejścia między podstronami (Chrome, Edge, Safari) ---------- */
 

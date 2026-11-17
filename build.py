@@ -18,6 +18,7 @@ import json
 import re
 import shutil
 import sys
+import urllib.request
 from datetime import date
 from pathlib import Path
 
@@ -27,11 +28,22 @@ except ImportError:  # pragma: no cover
     Image = None
 
 ROOT = Path(__file__).resolve().parent
+TYPES = {}  # wypełniane z site.config.json -> "types"
 CONTENT = ROOT / "content"
 STATIC = ROOT / "static"
 OUT = ROOT / "_site"
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
 CARD_W, LARGE_W = 640, 1280
+YT_CACHE = ROOT / ".cache" / "youtube"
+
+# Ikonka dobierana automatycznie po nazwie roli (jeśli w JSON nie podano "icon").
+ROLE_ICONS = [
+    ("reżyser", "clipper"), ("tłumacz", "ksiazka"), ("scenariusz", "ksiazka"), ("tekst", "ksiazka"),
+    ("grafik", "pyndzel"), ("miniatur", "pyndzel"), ("rysun", "pyndzel"), ("animac", "pyndzel"),
+    ("dźwięk", "glosnik"), ("mix", "glosnik"), ("mastering", "glosnik"),
+    ("montaż", "kamera"), ("wideo", "kamera"), ("video", "kamera"),
+    ("strona", "klawa"), ("kod", "klawa"), ("głos", "mikrofon"), ("wokal", "mikrofon"),
+]
 
 errors = []
 
@@ -85,10 +97,21 @@ def load_category(cat):
         if not data.get("title"):
             fail(f"{path.relative_to(ROOT)}: brakuje pola \"title\"")
             continue
+        rel = path.relative_to(ROOT)
         data["slug"] = slug
         data["category"] = cat
         data["url"] = f"{cat['folder']}/{slug}.html"
         data["source_image"] = find_image(folder, slug, data.get("image"), path)
+        video = data.get("video") or data.get("videoUrl")
+        data["video_id"] = youtube_id(video)
+        data["is_short"] = "/shorts/" in (video or "")
+        if video and not data["video_id"]:
+            fail(f"{rel}: nie rozpoznano linku YouTube w \"video\"")
+        types = TYPES.get("map", {})
+        if data.get("type") and data["type"] not in types:
+            fail(f"{rel}: nieznany \"type\": \"{data['type']}\" (dozwolone: {', '.join(types) or 'brak'})")
+        # Podstrona powstaje, gdy jest co na niej pokazać (albo gdy wymusisz "page": true / false).
+        data["has_page"] = data.get("page", bool(data.get("cast") or data.get("team") or data.get("details") or video))
         items.append(data)
     items.sort(key=lambda i: (i.get("order", 1000), i["title"].lower()))
     return items
@@ -110,12 +133,54 @@ def find_image(folder, slug, explicit, json_path):
 
 # ---------------------------------------------------------------- obrazki
 
+def youtube_thumbnail(vid):
+    """Pobiera najlepszą dostępną miniaturę z YouTube (z pamięcią podręczną w .cache/)."""
+    YT_CACHE.mkdir(parents=True, exist_ok=True)
+    cached = YT_CACHE / f"{vid}.jpg"
+    if cached.is_file() and cached.stat().st_size > 2000:
+        return cached
+    for name in ("maxresdefault", "sddefault", "hqdefault"):
+        try:
+            req = urllib.request.Request(f"https://i.ytimg.com/vi/{vid}/{name}.jpg", headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = resp.read()
+        except Exception:
+            continue
+        if len(data) > 2000:  # YouTube zwraca malutki obrazek-zaślepkę, gdy danej wersji nie ma
+            cached.write_bytes(data)
+            return cached
+    return None
+
+
+def trim_black_bars(im):
+    """Obcina czarne pasy (miniatury YouTube 4:3 i pionowe shorty)."""
+    mask = im.convert("L").point(lambda v: 255 if v > 20 else 0)
+    box = mask.getbbox()
+    if box and (box[2] - box[0]) > im.width * 0.3 and (box[3] - box[1]) > im.height * 0.3:
+        return im.crop(box)
+    return im
+
+
 def process_image(item):
-    """Tworzy wersje WebP 640/1280 px oraz JPG do podglądu linków (og:image)."""
-    src = item["source_image"]
+    """Tworzy wersje WebP 640/1280 px oraz JPG do podglądu linków (og:image).
+
+    Źródło: obrazek obok pliku JSON, a gdy go nie ma — miniatura filmu z YouTube.
+    """
     item["img"] = None
+    src = item["source_image"]
+    from_youtube = False
+    vid = item.get("video_id")
+    if not src and vid:
+        src = youtube_thumbnail(vid)
+        from_youtube = True
+        if not src or Image is None:
+            # brak internetu / Pillow: użyj miniatury prosto z YouTube
+            url = f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+            item["img"] = {"small": url, "large": url, "og": url, "w": None, "h": None, "vertical": item["is_short"]}
+            return
     if not src:
         return
+
     folder = item["category"]["folder"]
     out_dir = OUT / "images" / folder
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -125,14 +190,18 @@ def process_image(item):
         dest = out_dir / (item["slug"] + src.suffix.lower())
         shutil.copy2(src, dest)
         rel = f"images/{folder}/{dest.name}"
-        item["img"] = {"small": rel, "large": rel, "og": rel, "w": None, "h": None}
+        item["img"] = {"small": rel, "large": rel, "og": rel, "w": None, "h": None, "vertical": item["is_short"]}
         return
 
     with Image.open(src) as im:
         im = ImageOps.exif_transpose(im).convert("RGB")
+        if from_youtube:
+            im = trim_black_bars(im)
         w, h = im.size
-        large_w = min(LARGE_W, w)
-        for width, suffix in ((min(CARD_W, w), "640"), (large_w, "1280")):
+        vertical = h > w
+        large_w = min(LARGE_W if not vertical else 720, w)
+        small_w = min(CARD_W if not vertical else 360, w)
+        for width, suffix in ((small_w, "640"), (large_w, "1280")):
             dest = out_dir / f"{item['slug']}-{suffix}.webp"
             im.resize((width, round(h * width / w)), Image.LANCZOS).save(dest, quality=80, method=6)
         og = ImageOps.fit(im, (1200, 630), Image.LANCZOS)
@@ -143,6 +212,8 @@ def process_image(item):
         "og": f"{base}-og.jpg",
         "w": large_w,
         "h": round(h * large_w / w),
+        "sw": small_w,
+        "vertical": vertical,
     }
 
 
@@ -156,7 +227,7 @@ def layout(cfg, *, path, title, description, body, current=None, og_image=None, 
     site = cfg["url"].rstrip("/")
     canonical = site + "/" + (path[: -len("index.html")] if path.endswith("index.html") else path)
     full_title = cfg["name"] if title == cfg["name"] else f"{title} | {cfg['name']}"
-    og = site + "/" + (og_image or "images/og-image.jpg")
+    og = og_image if (og_image or "").startswith("http") else site + "/" + (og_image or "images/og-image.jpg")
 
     nav_links = [(f"{r}{c['folder']}/", c["nav"], c["folder"]) for c in cfg["categories"]]
     nav_links += [(f"{r}index.html#o-nas", "O nas", "o-nas"), (f"{r}index.html#kontakt", "Kontakt", "kontakt")]
@@ -166,6 +237,7 @@ def layout(cfg, *, path, title, description, body, current=None, og_image=None, 
     )
     robots = '<meta name="robots" content="noindex">' if noindex else f'<link rel="canonical" href="{canonical}">'
     email = esc(cfg["email"])
+    yt_link = f'<a href="{esc(cfg["youtube"])}" target="_blank" rel="noopener">YouTube</a>' if cfg.get("youtube") else ""
     if standalone:
         head_assets = f"<style>{cfg['_css_text']}</style>\n  <script>{FIX_ROOT_JS}</script>"
     else:
@@ -219,7 +291,9 @@ def layout(cfg, *, path, title, description, body, current=None, og_image=None, 
         <img src="{logo}" alt="" width="32" height="32">
         <span>{esc(cfg['name'])} © <span data-year>{date.today().year}</span></span>
       </div>
-      <a href="mailto:{email}">{email}</a>
+      <div class="footer-links">
+        {yt_link}<a href="mailto:{email}">{email}</a>
+      </div>
     </div>
   </footer>
 </body>
@@ -227,25 +301,46 @@ def layout(cfg, *, path, title, description, body, current=None, og_image=None, 
 """
 
 
+def src(r, path):
+    return path if path.startswith("http") else r + path
+
+
+def type_badge(item, cls="badge type"):
+    t = TYPES.get("map", {}).get(item.get("type"))
+    return f'<span class="{cls}">{esc(t["badge"])}</span>' if t else ""
+
+
 def card(item, r, lazy=True):
     cat = item["category"]
     img = item.get("img")
-    media = ""
+    media_cls = "card-media"
     if img:
-        srcset = f' srcset="{r}{img["small"]} 640w, {r}{img["large"]} {img["w"]}w"' if img["w"] else ""
+        srcset = (f' srcset="{src(r, img["small"])} {img["sw"]}w, {src(r, img["large"])} {img["w"]}w"'
+                  if img.get("w") and img["small"] != img["large"] else "")
         media = (
-            f'<img src="{r}{img["small"]}"{srcset} sizes="(min-width: 1100px) 340px, (min-width: 640px) 50vw, 100vw" '
+            f'<img src="{src(r, img["small"])}"{srcset} sizes="(min-width: 1100px) 340px, (min-width: 640px) 50vw, 100vw" '
             'alt="" width="640" height="360"' + (' loading="lazy"' if lazy else "") + ' decoding="async">'
         )
+        if img.get("vertical"):
+            media_cls += " vertical"
+            media = f'<span class="bg" style="background-image: url(\'{src(r, img["small"])}\')"></span>' + media
+    else:
+        media_cls += " placeholder"
+        media = f'<img src="{r}images/logo.webp" alt="" width="96" height="96" loading="lazy">'
     badge_cls = "badge done" if cat.get("badgeStyle") == "done" else "badge"
     desc = f'\n              <p class="muted">{esc(item["desc"])}</p>' if item.get("desc") else ""
-    return f"""          <a class="card" href="{r}{item['url']}">
-            <div class="card-media">{media}</div>
-            <span class="{badge_cls}">{esc(cat['badge'])}</span>
+    data_type = f' data-type="{esc(item["type"])}"' if item.get("type") else ""
+    if item.get("has_page"):
+        open_tag, close_tag = f'<a class="card" href="{r}{item["url"]}"{data_type}>', "</a>"
+    else:
+        open_tag, close_tag = f'<div class="card static"{data_type}>', "</div>"
+    return f"""          {open_tag}
+            <div class="{media_cls}">{media}</div>
+            <span class="{badge_cls}">{esc(cat['badge'])}</span>{type_badge(item)}
             <div class="card-body">
               <h3>{esc(item['title'])}</h3>{desc}
             </div>
-          </a>"""
+          {close_tag}"""
 
 
 def grid(items, r, empty="Wkrótce pojawią się tu nowe projekty.", lazy=True):
@@ -253,6 +348,25 @@ def grid(items, r, empty="Wkrótce pojawią się tu nowe projekty.", lazy=True):
         return f'        <div class="grid"><p class="status">{esc(empty)}</p></div>'
     cards = "\n".join(card(i, r, lazy) for i in items)
     return f'        <div class="grid">\n{cards}\n        </div>'
+
+
+def filters(items):
+    """Przyciski Wszystkie / Oficjalne / Fanowskie (gdy w kategorii są różne typy)."""
+    present = [t for t in TYPES.get("map", {}) if any(i.get("type") == t for i in items)]
+    if len(present) < 2:
+        return ""
+    buttons = ['<button type="button" class="chip" data-filter="" aria-pressed="true">Wszystkie</button>']
+    buttons += [f'<button type="button" class="chip" data-filter="{esc(t)}" aria-pressed="false">{esc(TYPES["map"][t]["filter"])}</button>'
+                for t in present]
+    return '      <div class="filters" role="group" aria-label="Filtruj projekty" hidden>' + "".join(buttons) + "</div>"
+
+
+def role_icon(role):
+    role = (role or "").lower()
+    for key, icon in ROLE_ICONS:
+        if key in role:
+            return icon
+    return None
 
 
 def icon_src(name, r):
@@ -268,25 +382,33 @@ def people_section(heading, members, r, default_icon=None):
     for m in members or []:
         if isinstance(m, str):
             m = {"name": m}
-        if not isinstance(m, dict) or not str(m.get("name", "")).strip():
+        if not isinstance(m, dict):
             continue
-        name = str(m["name"]).strip()
-        if name not in by_name:
-            by_name[name] = {"name": name, "icons": [], "roles": []}
-            order.append(by_name[name])
-        p = by_name[name]
-        icon = m.get("icon", default_icon)
-        if icon and (icon, m.get("role")) not in p["icons"]:
-            p["icons"].append((icon, m.get("role")))
-        if m.get("role") and m["role"] not in p["roles"]:
-            p["roles"].append(m["role"])
+        # "Adrian Kolos, Patryk Kuczyński" = dwie osoby z tą samą rolą
+        for name in str(m.get("name", "")).split(","):
+            name = name.strip()
+            if not name:
+                continue
+            if name not in by_name:
+                by_name[name] = {"name": name, "icons": {}, "roles": []}
+                order.append(by_name[name])
+            p = by_name[name]
+            role = m.get("role")
+            icon = m.get("icon") or role_icon(role) or default_icon
+            if icon:
+                p["icons"].setdefault(icon, [])
+                if role and role not in p["icons"][icon]:
+                    p["icons"][icon].append(role)
+            if role and role not in p["roles"]:
+                p["roles"].append(role)
     if not order:
         return ""
     rows = []
     for p in order:
         icons = "".join(
-            '<img src="%s" alt="" width="26" height="26" loading="lazy"%s>' % (icon_src(i, r), ' title="%s"' % esc(role) if role else "")
-            for i, role in p["icons"]
+            '<img src="%s" alt="" width="26" height="26" loading="lazy"%s>'
+            % (icon_src(i, r), ' title="%s"' % esc(", ".join(roles)) if roles else "")
+            for i, roles in p["icons"].items()
         )
         icons = f'<span class="icons">{icons}</span>' if icons else ""
         roles = f'<span class="role"> — {esc(", ".join(p["roles"]))}</span>' if p["roles"] else ""
@@ -317,20 +439,20 @@ def youtube_id(url):
 
 def media_block(item, r):
     img = item.get("img")
-    vid = youtube_id(item.get("video") or item.get("videoUrl"))
-    if item.get("video") and not vid:
-        fail(f"content/{item['category']['folder']}/{item['slug']}.json: nie rozpoznano linku YouTube w \"video\"")
+    vid = item.get("video_id")
     img_tag = ""
     if img:
-        srcset = f' srcset="{r}{img["small"]} 640w, {r}{img["large"]} {img["w"]}w"' if img["w"] else ""
-        dims = f' width="{img["w"]}" height="{img["h"]}"' if img["w"] else ""
-        img_tag = (f'<img src="{r}{img["large"]}"{srcset} sizes="(min-width: 900px) 520px, 100vw" '
+        srcset = (f' srcset="{src(r, img["small"])} {img["sw"]}w, {src(r, img["large"])} {img["w"]}w"'
+                  if img.get("w") and img["small"] != img["large"] else "")
+        dims = f' width="{img["w"]}" height="{img["h"]}"' if img.get("w") else ""
+        img_tag = (f'<img src="{src(r, img["large"])}"{srcset} sizes="(min-width: 900px) 520px, 100vw" '
                    f'alt="{esc(item["title"])}"{dims} fetchpriority="high" decoding="async">')
     if vid:
         url = esc(item.get("video") or item.get("videoUrl"))
-        return f"""        <div class="project-media">
-          <button class="video" type="button" data-video="{vid}" aria-label="Odtwórz wideo: {esc(item['title'])}">
-            {img_tag or f'<img src="https://i.ytimg.com/vi/{vid}/hqdefault.jpg" alt="" width="480" height="360">'}
+        short = " short" if item.get("is_short") else ""
+        return f"""        <div class="project-media{short}">
+          <button class="video{short}" type="button" data-video="{vid}" aria-label="Odtwórz wideo: {esc(item['title'])}">
+            {img_tag}
             <span class="play" aria-hidden="true"></span>
           </button>
           <a class="video-link" href="{url}" target="_blank" rel="noopener">Obejrzyj na YouTube ↗</a>
@@ -363,11 +485,14 @@ def build_pages(cfg, cats):
         '<p%s>%s</p>' % (' class="muted"' if i else "", esc(p)) for i, p in enumerate(cfg.get("about", []))
     )
     email = esc(cfg["email"])
+    yt_button = (f'<a class="button secondary" href="{esc(cfg["youtube"])}" target="_blank" rel="noopener">Kanał YouTube ↗</a>'
+                 if cfg.get("youtube") else "")
     first = cats[0][0]["folder"] if cats else ""
     jsonld = json.dumps({
         "@context": "https://schema.org", "@type": "Organization", "name": cfg["name"],
         "url": cfg["url"].rstrip("/") + "/", "logo": cfg["url"].rstrip("/") + "/images/icon-512.png",
         "email": cfg["email"], "description": cfg["description"],
+        **({"sameAs": [cfg["youtube"]]} if cfg.get("youtube") else {}),
     }, ensure_ascii=False)
     body = f"""    <section class="hero">
       <div class="container hero-inner">
@@ -396,7 +521,10 @@ def build_pages(cfg, cats):
           <div id="kontakt" class="contact">
             <h3>Kontakt</h3>
             <p><a href="mailto:{email}">{email}</a></p>
-            <a class="button" href="mailto:{email}">Napisz wiadomość</a>
+            <div class="actions center">
+              <a class="button" href="mailto:{email}">Napisz wiadomość</a>
+              {yt_button}
+            </div>
           </div>
         </div>
       </div>
@@ -409,22 +537,27 @@ def build_pages(cfg, cats):
         # lista w kategorii
         body = f"""    <div class="container section">
       <h1>{esc(cat['pageTitle'])}</h1>
+{filters(items)}
 {grid(items, '../', lazy=False)}
     </div>"""
         pages[f"{f}/index.html"] = layout(cfg, path=f"{f}/index.html", title=cat["pageTitle"],
                                           description=cat["pageDescription"], body=body, current=f)
         # strony projektów
         for idx, item in enumerate(items):
+            if not item.get("has_page"):
+                continue
             r = "../"
+            tags = f'<span class="tag">{esc(cat["badge"])}</span>' + type_badge(item, "tag")
             info = [
                 f"          <h1>{esc(item['title'])}</h1>",
+                f'          <p class="tags">{tags}</p>',
                 f'          <p class="project-meta muted">{esc(item["desc"])}</p>' if item.get("desc") else "",
                 people_section("Obsada", item.get("cast"), r, default_icon="mikrofon"),
                 people_section("Ekipa projektu", item.get("team"), r),
                 f'        <section class="details">\n          <h2>Szczegóły</h2>\n          {rich_text(item["details"])}\n        </section>'
                 if item.get("details") else "",
             ]
-            others = (items[idx + 1:] + items[:idx])[:3]
+            others = [i for i in items[idx + 1:] + items[:idx] if i.get("has_page")][:3]
             more = ""
             if others:
                 more = f"""      <section class="section related">
@@ -481,6 +614,7 @@ def main():
     cfg = load_json(ROOT / "site.config.json")
     if not cfg:
         report_and_exit()
+    TYPES["map"] = cfg.get("types", {})
     cfg["_v_css"] = file_hash(STATIC / "assets" / "style.css")
     cfg["_v_js"] = file_hash(STATIC / "assets" / "site.js")
     css = (STATIC / "assets" / "style.css").read_text(encoding="utf-8")
@@ -514,6 +648,12 @@ def main():
     (OUT / "sitemap.xml").write_text(sitemap(cfg, pages), encoding="utf-8")
 
     total = sum(len(i) for _, i in cats)
+    yt_missing = [i["title"] for _, items in cats for i in items
+                  if (i.get("img") or {}).get("small", "").startswith("https://i.ytimg.com")]
+    if yt_missing:
+        print("Uwaga: nie udało się pobrać miniatur z YouTube (brak internetu?) – strona użyje ich bezpośrednio z YouTube:")
+        for t in yt_missing:
+            print("  - " + t)
     print(f"Gotowe! Stron: {len(pages)}, projektów: {total} -> {OUT.relative_to(ROOT)}/")
     if Image is None:
         print("Uwaga: brak Pillow – obrazki skopiowano bez optymalizacji (pip install pillow).")
