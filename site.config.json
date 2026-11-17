@@ -1,0 +1,33 @@
+{
+  "name": "Niezależni Studio",
+  "url": "https://niezaleznistudio.pl",
+  "email": "niezaleznistudio@gmail.com",
+  "eyebrow": "Studio dubbingowe · od 2024",
+  "tagline": "Jesteśmy małym, niezależnym studiem zajmującym się dubbingiem. Tworzymy polskie wersje językowe animacji i gier.",
+  "description": "Niezależni Studio – małe, niezależne studio dubbingowe. Tworzymy polski dubbing do animacji i gier, m.in. Homestuck i Pesterquest.",
+  "about": [
+    "Jesteśmy małym, niezależnym studiem zajmującym się dubbingiem. Z pasją tworzymy polskie wersje językowe – od castingu i tłumaczenia, przez nagrania, po montaż dźwięku i obrazu.",
+    "Chcesz dołączyć do obsady albo zaproponować projekt? Napisz do nas!"
+  ],
+  "homeLimit": 3,
+  "categories": [
+    {
+      "folder": "projekty",
+      "nav": "Projekty",
+      "homeTitle": "Nasze projekty",
+      "pageTitle": "Projekty w trakcie",
+      "pageDescription": "Projekty dubbingowe, nad którymi aktualnie pracuje Niezależni Studio.",
+      "badge": "W trakcie",
+      "badgeStyle": "wip"
+    },
+    {
+      "folder": "zrealizowane",
+      "nav": "Zrealizowane",
+      "homeTitle": "Zrealizowane",
+      "pageTitle": "Zrealizowane projekty",
+      "pageDescription": "Ukończone projekty dubbingowe Niezależni Studio – obejrzyj nasze polskie wersje.",
+      "badge": "Zrealizowane",
+      "badgeStyle": "done"
+    }
+  ]
+}

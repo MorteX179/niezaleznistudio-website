@@ -1,0 +1,23 @@
+{
+  "title": "Homestuck Pilot Dubbing",
+  "desc": "Dubbing | 2025",
+  "seo": "Polski dubbing do animowanego pilota Homestuck – obsada, ekipa i wideo. Niezależni Studio.",
+  "order": 1,
+  "video": "https://www.youtube.com/watch?v=33pJt8sqMw4",
+  "cast": [
+    { "name": "Selvmord", "role": "Narrator" },
+    { "name": "Venus", "role": "John Egbert" },
+    { "name": "SomeGuyNamedAlan", "role": "Dave Strider" },
+    { "name": "@JulaDajeFulaa", "role": "Rose Lalonde" },
+    { "name": "Kreweta", "role": "Jade Harley" },
+    { "name": "Andrzej Lesiński", "role": "Karkat Vantas" }
+  ],
+  "team": [
+    { "name": "Vriska", "role": "Reżyseria", "icon": "clipper" },
+    { "name": "Inuku", "role": "Tłumaczenie", "icon": "ksiazka" },
+    { "name": "Inuku", "role": "Grafika", "icon": "pyndzel" },
+    { "name": "MorteX", "role": "Dźwięk", "icon": "glosnik" },
+    { "name": "MorteX", "role": "Montaż wideo", "icon": "kamera" }
+  ],
+  "details": "Tworząc powoli dubbing do Pesterquest, dodaliśmy też polski dubbing do zwiastuna Homestuck. Z czasem, po premierze pełnego pilota Homestuck, jako pierwsi w Polsce przygotowaliśmy do niego polski dubbing. :)"
+}
