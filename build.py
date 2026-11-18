@@ -253,7 +253,8 @@ def layout(cfg, *, path, title, description, body, current=None, og_image=None, 
   <meta name="description" content="{esc(description)}">
   {robots}
   <meta name="theme-color" content="#4a3fe0">
-  <link rel="icon" type="image/png" sizes="32x32" href="{r}images/favicon-32.png">
+  <link rel="icon" href="{r}favicon.ico" sizes="16x16 32x32 48x48 64x64">
+  <link rel="icon" type="image/png" sizes="192x192" href="{r}images/icon-192.png">
   <link rel="apple-touch-icon" href="{r}images/apple-touch-icon.png">
   <link rel="manifest" href="{r}site.webmanifest">
   <meta property="og:type" content="website">
